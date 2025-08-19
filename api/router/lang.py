@@ -31,9 +31,9 @@ async def ask_ques(que:Question):
     messages = [
     (
         "system",
-        "You are a helpful assistant that translates English to French. Translate the user sentence.",
+        "You are a helpful assistant anser based on the context provided:",
     ),
-    ("human", "I love programming."),
+    ("human", results),
 ]
     ai_msg = llm.invoke(messages)
 
