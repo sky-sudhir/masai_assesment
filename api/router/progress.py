@@ -25,7 +25,7 @@ class ProgressUpdate(BaseModel):
 
 
 
-router=APIRouter(prefix="/progess")
+router=APIRouter(prefix="/progess",tags=["Progress"])
 
 
 

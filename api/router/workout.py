@@ -12,7 +12,7 @@ from api.db.db import get_db
 from api.model.model import Workout
 
 
-router=APIRouter(prefix="/workout")
+router=APIRouter(prefix="/workout",tags=["Workout"])
 
 class WorkoutCreate(BaseModel):
     user_id:int

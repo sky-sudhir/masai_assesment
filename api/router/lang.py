@@ -1,43 +1,52 @@
 from http import HTTPStatus
-from unittest import result
-from fastapi import APIRouter
+from fastapi import APIRouter, UploadFile, File
 from pydantic import BaseModel
-from api.db.chromadb import collection
-from langchain_groq import ChatGroq
+from api.db.chromadb import ingest_documents, search_documents
+from langchain_core.documents import Document
+from langchain_google_genai import ChatGoogleGenerativeAI
+from PyPDF2 import PdfReader
+import io
 
+router = APIRouter(prefix="/chat",tags=["Chat"])
 
-
-router=APIRouter(prefix="/chat")
 class Question(BaseModel):
-    ques:str
+    ques: str
 
-@router.post("/ask",status_code=HTTPStatus.OK)
-async def ask_ques(que:Question):
-    results = collection.query(
-    query_texts=[que.ques], 
-    n_results=4 
-    )
-
-    llm = ChatGroq(
-    model="deepseek-r1-distill-llama-70b",
-    temperature=0,
-    max_tokens=None,
-    reasoning_format="parsed",
-    timeout=None,
-    max_retries=2,
+@router.post("/ingest", status_code=HTTPStatus.OK)
+async def ingest_pdf(file: UploadFile = File(...)):
+    if not file.filename.endswith('.pdf'):
+        return {"error": "Only PDF files are allowed"}
     
-    # other params...
-)
-    messages = [
-    (
-        "system",
-        "You are a helpful assistant anser based on the context provided:",
-    ),
-    ("human", results),
-]
-    ai_msg = llm.invoke(messages)
+    content = await file.read()
+    pdf_reader = PdfReader(io.BytesIO(content))
+    
+    documents = []
+    for i, page in enumerate(pdf_reader.pages):
+        text = page.extract_text()
+        if text.strip():
+            doc = Document(
+                page_content=text,
+                metadata={"source": file.filename, "page": i + 1}
+            )
+            documents.append(doc)
+    
+    ingest_documents(documents)
+    return {"message": f"Successfully ingested {len(documents)} pages from {file.filename}"}
 
-    return ai_msg
-
+@router.post("/chat", status_code=HTTPStatus.OK)
+async def ask_question(question: Question):
+    results = search_documents(question.ques, n_results=3)
+    
+    context = "\n".join(results['documents'][0])
+    
+    llm = ChatGoogleGenerativeAI(
+        model="gemini-2.0-flash",
+        temperature=0
+    )
+    
+    prompt = f"Context: {context}\n\nQuestion: {question.ques}\n\nAnswer based on the context:"
+    response = llm.invoke(prompt)
+    
+    return {"answer": response.content}
 
 

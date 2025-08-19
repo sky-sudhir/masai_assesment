@@ -38,9 +38,24 @@ class UserCreate(BaseModel):
     goals:Optional[str]=None
 
 @router.post("/register",status_code=HTTPStatus.CREATED)
-async def register_user(request:UserCreate ,db:AsyncSession=Depends(get_db)):
+async def register_user(request:UserCreate ,db:AsyncSession=Depends(get_db))->UserResponse:
 
-    new_user=User(email=request.email,password=request.password, username=request.username)
+    # Check if user already exists
+    existing_user = await db.execute(select(User).where(
+        (User.email == request.email) | (User.username == request.username)
+    ))
+    if existing_user.scalar_one_or_none():
+        raise HTTPException(status_code=400, detail="User with this email or username already exists")
+
+    new_user=User(
+        email=request.email,
+        password=request.password, 
+        username=request.username,
+        age=request.age,
+        weight=request.weight,
+        height=request.height,
+        goals=request.goals
+    )
     db.add(new_user)
 
     try:
@@ -51,7 +66,7 @@ async def register_user(request:UserCreate ,db:AsyncSession=Depends(get_db)):
         raise HTTPException(status_code=500, detail=f" {e}")
 
 
-    return UserCreate(id=new_user.id, email=new_user.email, username=new_user.username)
+    return UserResponse(email=new_user.email, username=new_user.username, age=new_user.age, weight=new_user.weight, height=new_user.height, goals=new_user.goals)
 
 
 
@@ -67,8 +82,8 @@ async def login(request: LoginInput,db:AsyncSession=Depends(get_db))->UserRespon
         raise HTTPException(status_code=400,detail="Invalid password")
 
     return user
-@router.post("/user/{user_id}",status_code=HTTPStatus.OK)
-async def login(user_id:int,db:AsyncSession=Depends(get_db))->UserResponse:
+@router.get("/user/{user_id}",status_code=HTTPStatus.OK)
+async def get_user(user_id:int,db:AsyncSession=Depends(get_db))->UserResponse:
     user_result = await db.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one_or_none() 
     if not user:

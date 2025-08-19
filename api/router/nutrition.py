@@ -9,10 +9,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from api.db.db import get_db
 from api.model.model import Nutrition
-from api.db.chromadb import collection
+# from api.db.chromadb import collection
 
 
-router=APIRouter(prefix="/nutrition")
+router=APIRouter(prefix="/nutrition",tags=["Nutrition"])
 
 class NutritionCreate(BaseModel):
     user_id:int
@@ -34,7 +34,7 @@ async def create_nutrition(request:NutritionCreate,db:AsyncSession=Depends(get_d
     )
     json_of_nutrition=f"nutrition:  plan name: {request.plan_name}, date: {request.date}, meals:{request.meals}"
 
-    collection.add(documents=[json_of_nutrition],ids=["1"])
+    # collection.add(documents=[json_of_nutrition],ids=["1"])
 
     db.add(new_nutrition)
     await db.commit()  
